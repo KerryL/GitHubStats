@@ -18,7 +18,33 @@ public:
 	GitHubInterface(const std::string &userAgent);
 	bool Initialize(const std::string& user);
 
-	std::vector<std::string> GetUsersRepos();
+	struct RepoInfo
+	{
+		std::string name;
+		std::string description;
+		std::string releasesURL;
+		std::string creationTime;
+		std::string lastUpdateTime;
+		std::string language;
+	};
+
+	struct AssetData
+	{
+		std::string name;
+		unsigned int fileSize;
+		unsigned int downloadCount;
+	};
+
+	struct ReleaseData
+	{
+		std::string tag;
+		std::string creationTime;
+		std::vector<AssetData> assets;
+	};
+
+	std::vector<RepoInfo> GetUsersRepos();
+	bool GetRepoData(GitHubInterface::RepoInfo& info,
+		std::vector<ReleaseData>* releaseData = NULL);
 
 private:
 	// URL building-blocks
@@ -26,14 +52,29 @@ private:
 
 	// JSON tags
 	static const std::string userURLTag;
+	static const std::string userReposURLTag;
 
 	static const std::string reposURLTag;
 	static const std::string nameTag;
 	static const std::string repoCountTag;
 	static const std::string creationTimeTag;
 
+	static const std::string descriptionTag;
+	static const std::string releasesURLTag;
+	static const std::string updateTimeTag;
+	static const std::string languageTag;
+
+	static const std::string tagNameTag;
+	static const std::string assetTag;
+	static const std::string sizeTag;
+	static const std::string downloadCountTag;
+
 	std::string userURL;
 	std::string reposURLRoot;
+
+	RepoInfo GetRepoData(cJSON* repoNode);
+	ReleaseData GetReleaseData(cJSON* releaseNode);
+	AssetData GetAssetData(cJSON* assetNode);
 };
 
 #endif// GIT_HUB_INTERFACE_H_

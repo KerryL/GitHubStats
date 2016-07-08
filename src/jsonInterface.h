@@ -32,9 +32,10 @@ protected:
 		std::string &response) const;
 	bool DoCURLGet(const std::string &url, std::string &response) const;
 
-	bool ReadJSON(cJSON *root, const std::string& field, int &value) const;
-	bool ReadJSON(cJSON *root, const std::string& field, std::string &value) const;
-	bool ReadJSON(cJSON *root, const std::string& field, double &value) const;
+	static bool ReadJSON(cJSON *root, const std::string& field, int &value);
+	static bool ReadJSON(cJSON *root, const std::string& field, unsigned int &value);
+	static bool ReadJSON(cJSON *root, const std::string& field, std::string &value);
+	static bool ReadJSON(cJSON *root, const std::string& field, double &value);
 
 	static size_t CURLWriteCallback(char *ptr, size_t size, size_t nmemb, void *userData);
 };

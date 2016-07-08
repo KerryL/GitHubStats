@@ -216,7 +216,7 @@ size_t JSONInterface::CURLWriteCallback(char *ptr, size_t size, size_t nmemb, vo
 //		bool, true for success, false otherwise
 //
 //==========================================================================
-bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, int &value) const
+bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, int &value)
 {
 	cJSON *element = cJSON_GetObjectItem(root, field.c_str());
 	if (!element)
@@ -241,13 +241,13 @@ bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, int &value) 
 //		field	= const std::string&
 //
 // Output Arguments:
-//		value	= std::string&
+//		value	= unsigned int&
 //
 // Return Value:
 //		bool, true for success, false otherwise
 //
 //==========================================================================
-bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, std::string &value) const
+bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, unsigned int &value)
 {
 	cJSON *element = cJSON_GetObjectItem(root, field.c_str());
 	if (!element)
@@ -256,7 +256,39 @@ bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, std::string 
 		return false;
 	}
 
-	value = element->valuestring;
+	value = static_cast<unsigned int>(element->valueint);
+
+	return true;
+}
+
+//==========================================================================
+// Class:			JSONInterface
+// Function:		ReadJSON
+//
+// Description:		Reads the specified field from the JSON array.
+//
+// Input Arguments:
+//		root	= cJSON*
+//		field	= const std::string&
+//
+// Output Arguments:
+//		value	= std::string&
+//
+// Return Value:
+//		bool, true for success, false otherwise
+//
+//==========================================================================
+bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, std::string &value)
+{
+	cJSON *element = cJSON_GetObjectItem(root, field.c_str());
+	if (!element)
+	{
+		//std::cerr << "Failed to read field '" << field << "' from JSON array" << std::endl;
+		return false;
+	}
+
+	if (element->valuestring)
+		value = element->valuestring;
 
 	return true;
 }
@@ -278,7 +310,7 @@ bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, std::string 
 //		bool, true for success, false otherwise
 //
 //==========================================================================
-bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, double &value) const
+bool JSONInterface::ReadJSON(cJSON *root, const std::string& field, double &value)
 {
 	cJSON *element = cJSON_GetObjectItem(root, field.c_str());
 	if (!element)

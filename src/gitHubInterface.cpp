@@ -13,11 +13,22 @@
 const std::string GitHubInterface::apiRoot("https://api.github.com/");
 
 const std::string GitHubInterface::userURLTag("user_url");
+const std::string GitHubInterface::userReposURLTag("repository_url");
 
-const std::string GitHubInterface::reposURLTag("repository_url");
+const std::string GitHubInterface::reposURLTag("repos_url");
 const std::string GitHubInterface::nameTag("name");
 const std::string GitHubInterface::repoCountTag("public_repos");
 const std::string GitHubInterface::creationTimeTag("created_at");
+
+const std::string GitHubInterface::descriptionTag("description");
+const std::string GitHubInterface::releasesURLTag("releases_url");
+const std::string GitHubInterface::updateTimeTag("updated_at");
+const std::string GitHubInterface::languageTag("language");
+
+const std::string GitHubInterface::tagNameTag("tag_name");
+const std::string GitHubInterface::assetTag("assets");
+const std::string GitHubInterface::sizeTag("size");
+const std::string GitHubInterface::downloadCountTag("download_count");
 
 GitHubInterface::GitHubInterface(const std::string &userAgent) : JSONInterface(userAgent)
 {
@@ -50,7 +61,7 @@ bool GitHubInterface::Initialize(const std::string& user)
 			userURL.replace(begin, userCode.length(), user);
 	}
 
-	if (ReadJSON(root, reposURLTag, reposURLRoot))
+	if (ReadJSON(root, userReposURLTag, reposURLRoot))
 	{
 		const std::string ownerCode("{owner}");
 		size_t begin(reposURLRoot.find(ownerCode));
@@ -73,8 +84,137 @@ bool GitHubInterface::Initialize(const std::string& user)
 	return !userURL.empty() && !reposURLRoot.empty();
 }
 
-std::vector<std::string> GitHubInterface::GetUsersRepos()
+std::vector<GitHubInterface::RepoInfo> GitHubInterface::GetUsersRepos()
 {
-	std::vector<std::string> repos;
+	std::vector<RepoInfo> repos;
+
+	std::string response;
+	if (!DoCURLGet(userURL, response))
+		return repos;
+
+	cJSON *root = cJSON_Parse(response.c_str());
+	if (!root)
+	{
+		std::cerr << "Failed to parse returned string (GetUsersRepos())" << std::endl;
+		std::cerr << response << std::endl;
+		return repos;
+	}
+
+	std::string reposURL;
+	if (!ReadJSON(root, reposURLTag, reposURL))
+	{
+		std::cerr << "Failed to find repository access in response" << std::endl;
+		return repos;
+	}
+
+	cJSON_Delete(root);
+
+	if (!DoCURLGet(reposURL, response))
+		return repos;
+
+	root = cJSON_Parse(response.c_str());
+
+	const int count(cJSON_GetArraySize(root));
+	int i;
+	for (i = 0; i < count; i++)
+	{
+		cJSON* repo = cJSON_GetArrayItem(root, i);
+		repos.push_back(GetRepoData(repo));
+	}
+
+	cJSON_Delete(root);
+
 	return repos;
+}
+
+GitHubInterface::RepoInfo GitHubInterface::GetRepoData(cJSON* repoNode)
+{
+	RepoInfo info;
+
+	ReadJSON(repoNode, nameTag, info.name);
+	ReadJSON(repoNode, descriptionTag, info.description);
+	ReadJSON(repoNode, updateTimeTag, info.lastUpdateTime);
+	ReadJSON(repoNode, creationTimeTag, info.creationTime);
+	ReadJSON(repoNode, languageTag, info.language);
+	if (ReadJSON(repoNode, releasesURLTag, info.releasesURL))
+	{
+		const std::string idCode("{/id}");
+		size_t begin(info.releasesURL.find(idCode));
+		if (begin == std::string::npos)
+			info.releasesURL.clear();
+		else
+			info.releasesURL.resize(begin);
+	}
+
+	return info;
+}
+
+bool GitHubInterface::GetRepoData(RepoInfo& info,
+	std::vector<ReleaseData>* releaseData)
+{
+	// For now, no further data added to info, although if we wanted to have a
+	// more in-depth look, this is where we should do it.
+
+	if (!releaseData)
+		return true;
+
+	releaseData->clear();
+
+	std::string response;
+	if (!DoCURLGet(info.releasesURL, response))
+		return false;
+
+	cJSON *root = cJSON_Parse(response.c_str());
+	if (!root)
+	{
+		std::cerr << "Failed to parse returned string (GetRepoData())" << std::endl;
+		std::cerr << response << std::endl;
+		return false;
+	}
+
+	const int count(cJSON_GetArraySize(root));
+	int i;
+	for (i = 0; i < count; i++)
+	{
+		cJSON* release = cJSON_GetArrayItem(root, i);
+		releaseData->push_back(GetReleaseData(release));
+	}
+
+	cJSON_Delete(root);
+
+	return true;
+}
+
+GitHubInterface::ReleaseData GitHubInterface::GetReleaseData(cJSON* releaseNode)
+{
+	ReleaseData r;
+
+	ReadJSON(releaseNode, tagNameTag, r.tag);
+	ReadJSON(releaseNode, creationTimeTag, r.creationTime);
+
+	cJSON* assetNode = cJSON_GetObjectItem(releaseNode, assetTag.c_str());
+	if (!assetNode)
+		return r;
+
+	const int count(cJSON_GetArraySize(assetNode));
+
+	int i;
+	for (i = 0; i < count; i++)
+	{
+		cJSON* asset = cJSON_GetArrayItem(assetNode, i);
+		r.assets.push_back(GetAssetData(asset));
+	}
+
+	return r;
+}
+
+GitHubInterface::AssetData GitHubInterface::GetAssetData(cJSON* assetNode)
+{
+	AssetData info;
+
+	ReadJSON(assetNode, nameTag, info.name);
+	ReadJSON(assetNode, sizeTag, info.fileSize);
+	ReadJSON(assetNode, downloadCountTag, info.downloadCount);
+
+	return info;
 }
