@@ -14,10 +14,14 @@ const std::string GitHubInterface::apiRoot("https://api.github.com/");
 
 const std::string GitHubInterface::userURLTag("user_url");
 
-const std::string GitHubInterface::reposURLTag("repos_url");
+const std::string GitHubInterface::reposURLTag("repository_url");
 const std::string GitHubInterface::nameTag("name");
 const std::string GitHubInterface::repoCountTag("public_repos");
 const std::string GitHubInterface::creationTimeTag("created_at");
+
+GitHubInterface::GitHubInterface(const std::string &userAgent) : JSONInterface(userAgent)
+{
+}
 
 bool GitHubInterface::Initialize(const std::string& user)
 {

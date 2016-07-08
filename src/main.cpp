@@ -10,6 +10,8 @@
 // Local headers
 #include "gitHubInterface.h"
 
+static const std::string userAgent("gitHubStats/1.0");
+
 bool GetGitHubUser(std::string& user)
 {
 	std::cout << "Enter user:  ";
@@ -38,16 +40,13 @@ void GetStats(GitHubInterface& github, const std::string& repo)
 {
 }
 
-#include <fstream>
-#include <cassert>
 int main()
 {
 	std::string user, repo;
 	if (!GetGitHubUser(user))
 		return 1;
 
-	GitHubInterface github;
-	github.SetVerboseOutput();
+	GitHubInterface github(userAgent);
 	github.SetCACertificatePath("../");
 	if (!github.Initialize(user))
 		return 1;

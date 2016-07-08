@@ -15,11 +15,14 @@ struct cJSON;
 class JSONInterface
 {
 public:
-	JSONInterface();
+	JSONInterface(const std::string& userAgent = "");
 	virtual ~JSONInterface() {}
 
 	void SetCACertificatePath(const std::string& path) { caCertificatePath = path; }
 	void SetVerboseOutput(const bool& verboseOutput = true) { verbose = verboseOutput; }
+
+private:
+	const std::string userAgent;
 
 protected:
 	std::string caCertificatePath;

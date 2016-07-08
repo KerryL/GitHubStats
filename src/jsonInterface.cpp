@@ -42,7 +42,7 @@
 //		None
 //
 //==========================================================================
-JSONInterface::JSONInterface()
+JSONInterface::JSONInterface(const std::string& userAgent) : userAgent(userAgent)
 {
 	verbose = false;
 }
@@ -84,6 +84,9 @@ bool JSONInterface::DoCURLPost(const std::string &url, const std::string &data,
 
 	if (verbose)
 		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
+	if (!userAgent.empty())
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
 
 	curl_easy_setopt(curl, CURLOPT_POST, true);
 /*	char *urlEncodedData = curl_easy_escape(curl, data.c_str(), data.length());
@@ -146,13 +149,13 @@ bool JSONInterface::DoCURLGet(const std::string &url, std::string &response) con
 
 	if (!caCertificatePath.empty())
 		curl_easy_setopt(curl, CURLOPT_CAPATH, caCertificatePath.c_str());
-	// TODO:  Remove this option
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);// TODO:  Remove this option
+
+	if (!userAgent.empty())
+		curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
 
 	if (verbose)
 		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-
-	//curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
 
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	CURLcode result = curl_easy_perform(curl);

@@ -15,6 +15,7 @@
 class GitHubInterface : public JSONInterface
 {
 public:
+	GitHubInterface(const std::string &userAgent);
 	bool Initialize(const std::string& user);
 
 	std::vector<std::string> GetUsersRepos();
