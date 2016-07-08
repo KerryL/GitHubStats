@@ -23,7 +23,8 @@ bool GetGitHubUser(std::string& user)
 	return !user.empty();
 }
 
-bool GetGitHubRepo(GitHubInterface& github, GitHubInterface::RepoInfo& repo)
+bool GetGitHubRepo(GitHubInterface& github,
+	GitHubInterface::RepoInfo& repo, const std::string& nameToMatch = "")
 {
 	std::vector<GitHubInterface::RepoInfo> repoList(github.GetUsersRepos());
 	if (repoList.size() == 0)
@@ -32,25 +33,31 @@ bool GetGitHubRepo(GitHubInterface& github, GitHubInterface::RepoInfo& repo)
 		return false;
 	}
 
-	std::cout << "\nFound " << repoList.size() << " repos:\n";
-	unsigned int i, maxNameLen(0);
-	for (i = 0; i < repoList.size(); i++)
-	{
-		if (repoList[i].name.length() > maxNameLen)
-			maxNameLen = repoList[i].name.length();
-	}
-
-	for (i = 0; i < repoList.size(); i++)
-	{
-		std::cout << "  " << std::left << std::setw(maxNameLen) << std::setfill(' ') << repoList[i].name;
-		std::cout << "    " << repoList[i].description;
-		std::cout << "\n";
-	}
-
 	std::string repoName;
-	std::cout << "\nEnter repo:  ";
-	std::cin >> repoName;
+	if (nameToMatch.empty())
+	{
+		std::cout << "\nFound " << repoList.size() << " repos:\n";
+		unsigned int i, maxNameLen(0);
+		for (i = 0; i < repoList.size(); i++)
+		{
+			if (repoList[i].name.length() > maxNameLen)
+				maxNameLen = repoList[i].name.length();
+		}
 
+		for (i = 0; i < repoList.size(); i++)
+		{
+			std::cout << "  " << std::left << std::setw(maxNameLen) << std::setfill(' ') << repoList[i].name;
+			std::cout << "    " << repoList[i].description;
+			std::cout << "\n";
+		}
+
+		std::cout << "\nEnter repo:  ";
+		std::cin >> repoName;
+	}
+	else
+		repoName = nameToMatch;
+
+	unsigned int i;
 	for (i = 0; i < repoList.size(); i++)
 	{
 		if (repoList[i].name.compare(repoName) == 0)
@@ -131,20 +138,42 @@ void GetStats(GitHubInterface& github, GitHubInterface::RepoInfo repo)
 	PrintReleaseData(releaseData);
 }
 
-int main()
+void PrintUsage()
 {
+	std::cout << "Usage:  gitHubStats [user repo]" << std::endl;
+	std::cout << "If user and repo names are omitted, user is prompted to enter the names interactively." << std::endl;
+}
+
+int main(int argc, char *argv[])
+{
+	if (argc != 1 && argc != 3)
+	{
+		PrintUsage();
+		return 1;
+	}
+
 	std::string user;
-	if (!GetGitHubUser(user))
+	if (argc == 3)
+		user = argv[1];
+	else if (!GetGitHubUser(user))
 		return 1;
 
 	GitHubInterface github(userAgent);
-	github.SetCACertificatePath("../");
+	github.SetCACertificatePath("../");// TODO:  This should be configurable
 	if (!github.Initialize(user))
 		return 1;
 
 	GitHubInterface::RepoInfo repo;
-	if (!GetGitHubRepo(github, repo))
-		return 1;
+	if (argc == 3)
+	{
+		if (!GetGitHubRepo(github, repo, argv[2]))
+			return 1;
+	}
+	else
+	{
+		if (!GetGitHubRepo(github, repo))
+			return 1;
+	}
 
 	GetStats(github, repo);
 
