@@ -106,7 +106,7 @@ std::string GetPrettyFileSize(const unsigned int& bytes)
 void PrintReleaseData(const std::vector<GitHubInterface::ReleaseData>& releaseData)
 {
 	std::cout << "\n" << releaseData.size() << " release(s)" << std::endl;
-	unsigned int i;
+	unsigned int i, total(0);
 	for (i = 0; i < releaseData.size(); i++)
 	{
 		std::cout << "\n\nTag:      " << releaseData[i].tag;
@@ -121,11 +121,13 @@ void PrintReleaseData(const std::vector<GitHubInterface::ReleaseData>& releaseDa
 				std::cout << "\nFile name:         " << releaseData[i].assets[j].name;
 				std::cout << "\n  Size:            " << GetPrettyFileSize(releaseData[i].assets[j].fileSize);
 				std::cout << "\n  Download Count:  " << releaseData[i].assets[j].downloadCount << std::endl;
+				total += releaseData[i].assets[j].downloadCount;
 			}
 		}
 	}
 
 	std::cout << std::endl;
+	std::cout << "Total downloads:  " << total << std::endl;
 }
 
 void GetStats(GitHubInterface& github, GitHubInterface::RepoInfo repo)
