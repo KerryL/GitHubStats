@@ -159,7 +159,6 @@ int main(int argc, char *argv[])
 		return 1;
 
 	GitHubInterface github(userAgent);
-	github.SetCACertificatePath("../");// TODO:  This should be configurable
 	if (!github.Initialize(user))
 		return 1;
 

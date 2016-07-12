@@ -145,11 +145,9 @@ bool JSONInterface::DoCURLGet(const std::string &url, std::string &response) con
 	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, JSONInterface::CURLWriteCallback);
 	response.clear();
 	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
-	//curl_easy_setopt(curl, CURLOPT_USE_SSL, CURLUSESSL_ALL);
 
 	if (!caCertificatePath.empty())
 		curl_easy_setopt(curl, CURLOPT_CAPATH, caCertificatePath.c_str());
-	curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);// TODO:  Remove this option
 
 	if (!userAgent.empty())
 		curl_easy_setopt(curl, CURLOPT_USERAGENT, userAgent.c_str());
