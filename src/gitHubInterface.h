@@ -72,6 +72,8 @@ private:
 	std::string userURL;
 	std::string reposURLRoot;
 
+	std::string AuthorizeURL(const std::string& url) const;
+
 	RepoInfo GetRepoData(cJSON* repoNode);
 	ReleaseData GetReleaseData(cJSON* releaseNode);
 	AssetData GetAssetData(cJSON* assetNode);

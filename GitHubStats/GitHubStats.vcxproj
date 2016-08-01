@@ -156,11 +156,14 @@
     <ClCompile Include="..\src\gitHubInterface.cpp" />
     <ClCompile Include="..\src\jsonInterface.cpp" />
     <ClCompile Include="..\src\main.cpp" />
+    <ClCompile Include="..\src\oAuth2Interface.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\cJSON.h" />
     <ClInclude Include="..\src\gitHubInterface.h" />
     <ClInclude Include="..\src\jsonInterface.h" />
+    <ClInclude Include="..\src\oAuth2Interface.h" />
+    <ClInclude Include="..\src\portable.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

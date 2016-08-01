@@ -8,6 +8,7 @@
 
 // Local headers
 #include "gitHubInterface.h"
+#include "oAuth2Interface.h"
 #include "cJSON.h"
 
 const std::string GitHubInterface::apiRoot("https://api.github.com/");
@@ -37,7 +38,7 @@ GitHubInterface::GitHubInterface(const std::string &userAgent) : JSONInterface(u
 bool GitHubInterface::Initialize(const std::string& user)
 {
 	std::string response;
-	if (!DoCURLGet(apiRoot, response))
+	if (!DoCURLGet(AuthorizeURL(apiRoot), response))
 		return false;
 
 	cJSON *root = cJSON_Parse(response.c_str());
@@ -89,7 +90,7 @@ std::vector<GitHubInterface::RepoInfo> GitHubInterface::GetUsersRepos()
 	std::vector<RepoInfo> repos;
 
 	std::string response;
-	if (!DoCURLGet(userURL, response))
+	if (!DoCURLGet(AuthorizeURL(userURL), response))
 		return repos;
 
 	cJSON *root = cJSON_Parse(response.c_str());
@@ -109,7 +110,7 @@ std::vector<GitHubInterface::RepoInfo> GitHubInterface::GetUsersRepos()
 
 	cJSON_Delete(root);
 
-	if (!DoCURLGet(reposURL, response))
+	if (!DoCURLGet(AuthorizeURL(reposURL), response))
 		return repos;
 
 	root = cJSON_Parse(response.c_str());
@@ -161,7 +162,7 @@ bool GitHubInterface::GetRepoData(RepoInfo& info,
 	releaseData->clear();
 
 	std::string response;
-	if (!DoCURLGet(info.releasesURL, response))
+	if (!DoCURLGet(AuthorizeURL(info.releasesURL), response))
 		return false;
 
 	cJSON *root = cJSON_Parse(response.c_str());
@@ -217,4 +218,13 @@ GitHubInterface::AssetData GitHubInterface::GetAssetData(cJSON* assetNode)
 	ReadJSON(assetNode, downloadCountTag, info.downloadCount);
 
 	return info;
+}
+
+std::string GitHubInterface::AuthorizeURL(const std::string& url) const
+{
+	const std::string accessToken(OAuth2Interface::Get().GetRefreshToken());
+	if (accessToken.empty())
+		return url;
+
+	return url + "?access_token" + accessToken;
 }
