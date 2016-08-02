@@ -621,7 +621,7 @@ int OAuth2Interface::StripPortFromLocalRedirectURI() const
 {
 	assert(RedirectURIIsLocal());
 
-	unsigned int colon = redirectURI.find(':');
+	size_t colon = redirectURI.find(':');
 	if (colon == std::string::npos)
 		return 0;
 
