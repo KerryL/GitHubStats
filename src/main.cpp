@@ -188,7 +188,7 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 	std::cout << std::left << std::setw(maxReleaseCountLen) << std::setfill(' ') << releaseCountHeading << "  ";
 	std::cout << std::left << std::setw(maxDownloadCountLen) << std::setfill(' ') << downloadCountHeading << "\n";
 	std::cout << std::setw(maxNameLen + maxDateLen + maxLangLen
-		+ maxReleaseCountLen + maxDownloadCountLen + 8) << std::setfill('-') << "\n\n";
+		+ maxReleaseCountLen + maxDownloadCountLen + 8) << std::setfill('-') << "-" << std::endl;
 
 	for (i = 0; i < repoList.size(); i++)
 	{
