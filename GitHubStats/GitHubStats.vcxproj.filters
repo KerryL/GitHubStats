@@ -27,9 +27,6 @@
     <ClCompile Include="..\src\gitHubInterface.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\oAuth2Interface.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\cJSON.h">
@@ -39,12 +36,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\gitHubInterface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\oAuth2Interface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\portable.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
