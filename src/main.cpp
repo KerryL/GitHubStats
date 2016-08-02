@@ -237,32 +237,13 @@ int main(int argc, char *argv[])
 	}
 
 	// Check to see if we need to set up oAuth
+	std::string clientId;
+	std::string clientSecret;
 	std::ifstream oAuthFile(oAuthFileName.c_str());
 	if (oAuthFile.is_open() && oAuthFile.good())
 	{
-		std::string clientId;
-		std::string clientSecret;
-		std::string refreshToken;
 		oAuthFile >> clientId;
 		oAuthFile >> clientSecret;
-		oAuthFile >> refreshToken;
-
-		if (!clientId.empty() && !clientSecret.empty())
-		{
-			OAuth2Interface::Get().SetAuthenticationURL("https://github.com/login/oauth/authorize");
-			OAuth2Interface::Get().SetTokenURL("https://github.com/login/oauth/access_token");
-			OAuth2Interface::Get().SetScope(" ");// No scope (but it can't be empty due to our implementation) - read only access to public information
-			OAuth2Interface::Get().SetClientID(clientId);
-			OAuth2Interface::Get().SetClientSecret(clientSecret);
-			OAuth2Interface::Get().SetVerboseOutput();
-			OAuth2Interface::Get().SetRefreshToken(refreshToken);
-			if (OAuth2Interface::Get().GetRefreshToken().compare(refreshToken) != 0)
-			{
-				oAuthFile.close();
-				std::ofstream oAuthFileOut(oAuthFileName.c_str());
-				oAuthFileOut << clientId << "\n" << clientSecret << "\n" << refreshToken << std::endl;
-			}
-		}
 	}
 
 	std::string user;
@@ -271,7 +252,7 @@ int main(int argc, char *argv[])
 	else if (!GetGitHubUser(user))
 		return 1;
 
-	GitHubInterface github(userAgent);
+	GitHubInterface github(userAgent, clientId, clientSecret);
 	if (!github.Initialize(user))
 		return 1;
 

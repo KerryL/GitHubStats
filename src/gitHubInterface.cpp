@@ -8,7 +8,6 @@
 
 // Local headers
 #include "gitHubInterface.h"
-#include "oAuth2Interface.h"
 #include "cJSON.h"
 
 const std::string GitHubInterface::apiRoot("https://api.github.com/");
@@ -31,7 +30,9 @@ const std::string GitHubInterface::assetTag("assets");
 const std::string GitHubInterface::sizeTag("size");
 const std::string GitHubInterface::downloadCountTag("download_count");
 
-GitHubInterface::GitHubInterface(const std::string &userAgent) : JSONInterface(userAgent)
+GitHubInterface::GitHubInterface(const std::string &userAgent,
+	const std::string& clientId, const std::string& clientSecret)
+	: JSONInterface(userAgent), clientId(clientId), clientSecret(clientSecret)
 {
 }
 
@@ -222,9 +223,8 @@ GitHubInterface::AssetData GitHubInterface::GetAssetData(cJSON* assetNode)
 
 std::string GitHubInterface::AuthorizeURL(const std::string& url) const
 {
-	const std::string accessToken(OAuth2Interface::Get().GetRefreshToken());
-	if (accessToken.empty())
+	if (clientId.empty() || clientSecret.empty())
 		return url;
 
-	return url + "?access_token" + accessToken;
+	return url + "?client_id=" + clientId + "&client_secret=" + clientSecret;
 }

@@ -15,7 +15,8 @@
 class GitHubInterface : public JSONInterface
 {
 public:
-	GitHubInterface(const std::string &userAgent);
+	GitHubInterface(const std::string &userAgent,
+		const std::string& clientId, const std::string& clientSecret);
 	bool Initialize(const std::string& user);
 
 	struct RepoInfo
@@ -68,6 +69,9 @@ private:
 	static const std::string assetTag;
 	static const std::string sizeTag;
 	static const std::string downloadCountTag;
+
+	const std::string clientId;
+	const std::string clientSecret;
 
 	std::string userURL;
 	std::string reposURLRoot;
