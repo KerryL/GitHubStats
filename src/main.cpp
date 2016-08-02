@@ -13,7 +13,6 @@
 
 // Local headers
 #include "gitHubInterface.h"
-#include "oAuth2Interface.h"
 
 static const std::string userAgent("gitHubStats/1.0");
 static const std::string allRepoArg("--all");
