@@ -161,13 +161,15 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 	const std::string dateHeading("Last Modified");
 	const std::string languageHeading("Language");
 	const std::string releaseCountHeading("Releases");
-	const std::string downloadCountHeading("Downloads");
+	const std::string totalDownloadCountHeading("Total");
+	const std::string latestDownloadCountHeading("Latest");
 
 	unsigned int maxNameLen(repoNameHeading.length());
 	unsigned int maxLangLen(languageHeading.length());
 	unsigned int maxDateLen(dateHeading.length());
 	unsigned int maxReleaseCountLen(releaseCountHeading.length());
-	unsigned int maxDownloadCountLen(downloadCountHeading.length());
+	unsigned int maxTotalDownloadCountLen(totalDownloadCountHeading.length());
+	unsigned int maxLatestDownloadCountLen(latestDownloadCountHeading.length());
 
 	for (i = 0; i < repoList.size(); i++)
 	{
@@ -181,13 +183,22 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 			maxDateLen = repoList[i].lastUpdateTime.length();
 	}
 
-	std::cout << std::left << std::setw(maxNameLen) << std::setfill(' ') << repoNameHeading << "  ";
-	std::cout << std::left << std::setw(maxDateLen) << std::setfill(' ') << dateHeading << "  ";
-	std::cout << std::left << std::setw(maxLangLen) << std::setfill(' ') << languageHeading << "  ";
-	std::cout << std::left << std::setw(maxReleaseCountLen) << std::setfill(' ') << releaseCountHeading << "  ";
-	std::cout << std::left << std::setw(maxDownloadCountLen) << std::setfill(' ') << downloadCountHeading << "\n";
+	std::cout << std::left << std::setw(maxNameLen)
+		<< std::setfill(' ') << repoNameHeading << "  ";
+	std::cout << std::left << std::setw(maxDateLen)
+		<< std::setfill(' ') << dateHeading << "  ";
+	std::cout << std::left << std::setw(maxLangLen)
+		<< std::setfill(' ') << languageHeading << "  ";
+	std::cout << std::left << std::setw(maxReleaseCountLen)
+		<< std::setfill(' ') << releaseCountHeading << "  ";
+	std::cout << std::left << std::setw(maxTotalDownloadCountLen)
+		<< std::setfill(' ') << totalDownloadCountHeading << "  ";
+	std::cout << std::left << std::setw(maxLatestDownloadCountLen)
+		<< std::setfill(' ') << latestDownloadCountHeading << "\n";
 	std::cout << std::setw(maxNameLen + maxDateLen + maxLangLen
-		+ maxReleaseCountLen + maxDownloadCountLen + 8) << std::setfill('-') << "-" << std::endl;
+		+ maxReleaseCountLen + maxTotalDownloadCountLen
+		+ maxLatestDownloadCountLen + 9)
+		<< std::setfill('-') << "-" << std::endl;
 
 	for (i = 0; i < repoList.size(); i++)
 	{
@@ -198,18 +209,24 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 			std::cout << std::left << std::setw(maxLangLen) << std::setfill(' ') << repoList[i].language << "  ";
 			std::cout << std::left << std::setw(maxReleaseCountLen) << std::setfill(' ') << releaseData[i].size() << "  ";
 
-			unsigned int j, fileCount(0), downloadCount(0);
+			// Currently, GitHub lists newest release first.  It would be better to
+			// check the date for each release, but I'm being lazy now.
+			unsigned int j, fileCount(0), totalDownloadCount(0), latestDownloadCount(0);
 			for (j = 0; j < releaseData[i].size(); j++)
 			{
 				fileCount += releaseData[i][j].assets.size();
 
 				unsigned int k;
-				for (k = 0; k <	releaseData[i][j].assets.size(); k++)
-					downloadCount += releaseData[i][j].assets[k].downloadCount;
+				for (k = 0; k < releaseData[i][j].assets.size(); k++)
+					totalDownloadCount += releaseData[i][j].assets[k].downloadCount;
+
+				if (j == 0)
+					latestDownloadCount = totalDownloadCount;
 			}
 			
 			
-			std::cout << std::left << std::setw(maxDownloadCountLen) << std::setfill(' ') << downloadCount << "\n";
+			std::cout << std::left << std::setw(maxTotalDownloadCountLen) << std::setfill(' ') << totalDownloadCount << "  ";
+			std::cout << std::left << std::setw(maxLatestDownloadCountLen) << std::setfill(' ') << latestDownloadCount << "\n";
 		}
 	}
 }
