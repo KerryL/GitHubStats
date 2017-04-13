@@ -402,7 +402,7 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 				std::cout << "  " << std::left << std::setw(maxDeltaCountLen) << std::setfill(' ');
 				const int deltaDownloadCount(totalDownloadCount - lastDownloadCount);
 				if (deltaDownloadCount > 0)
-					std::cout << std::showpos << deltaDownloadCount;
+					std::cout << std::showpos << deltaDownloadCount << std::noshowpos;
 				else
 					std::cout << deltaDownloadCount;
 			}
