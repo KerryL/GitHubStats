@@ -10,13 +10,14 @@
 #include <sstream>
 #include <cmath>
 #include <fstream>
+#include <map>
 
 // Local headers
 #include "gitHubInterface.h"
 
 static const std::string userAgent("gitHubStats/1.0");
-static const std::string allRepoArg("--all");
 static const std::string oAuthFileName("oAuthInfo");
+static const std::string lastCountsFileName("lastCounts");
 
 bool GetGitHubUser(std::string& user)
 {
@@ -28,7 +29,7 @@ bool GetGitHubUser(std::string& user)
 
 bool GetGitHubRepo(GitHubInterface& github,
 	unsigned int& repo, std::vector<GitHubInterface::RepoInfo>& repoList,
-	const std::string& nameToMatch = "")
+	const bool& allRepos, const std::string& nameToMatch = "")
 {
 	repoList = github.GetUsersRepos();
 	if (repoList.size() == 0)
@@ -37,8 +38,9 @@ bool GetGitHubRepo(GitHubInterface& github,
 		return false;
 	}
 
+	const std::string allRepoArg("--all");
 	std::string repoName;
-	if (nameToMatch.empty())
+	if (nameToMatch.empty() && !allRepos)
 	{
 		std::cout << "\nFound " << repoList.size() << " repos:\n";
 		unsigned int i, maxNameLen(0);
@@ -61,7 +63,7 @@ bool GetGitHubRepo(GitHubInterface& github,
 	else
 		repoName = nameToMatch;
 
-	if (allRepoArg.compare(repoName) == 0)
+	if (allRepoArg.compare(repoName) == 0 || allRepos)
 	{
 		repo = repoList.size();
 		return true;
@@ -113,44 +115,183 @@ std::string GetPrettyFileSize(const unsigned int& bytes)
 	return ss.str();
 }
 
-void PrintReleaseData(const std::vector<GitHubInterface::ReleaseData>& releaseData)
+typedef std::map<std::string, unsigned int> AssetDownloadCountMap;
+struct TagDownloadCountMap// Name is too long (generates C4503) if we use a typedef here
 {
-	std::cout << "\n" << releaseData.size() << " release(s)" << std::endl;
-	unsigned int i, total(0);
-	for (i = 0; i < releaseData.size(); i++)
-	{
-		std::cout << "\n\nTag:      " << releaseData[i].tag;
-		std::cout << "\nCreated:  " << releaseData[i].creationTime;
+	std::map<std::string, AssetDownloadCountMap> assetCountMap;
+};
+typedef std::map<std::string, TagDownloadCountMap> RepoTagInfoMap;
 
-		if (releaseData[i].assets.size() > 0)
+bool ReadLastCountData(RepoTagInfoMap& data)
+{
+	std::ifstream file(lastCountsFileName.c_str());
+	if (!file.is_open() || !file.good())
+	{
+		std::cerr << "Failed to open '" << lastCountsFileName << "' for input\n";
+		return false;
+	}
+
+	unsigned int i, repoCount;
+	if (!(file >> repoCount).good())
+	{
+		std::cerr << "Failed to read repository count\n";
+		return false;
+	}
+
+	for (i = 0; i < repoCount; ++i)
+	{
+		std::string repoName;
+		file >> repoName;
+
+		unsigned int j, releaseCount;
+		if (!(file >> releaseCount).good())
 		{
-			std::cout << "\n" << releaseData[i].assets.size() << " associated file(s)";
-			unsigned int j;
-			for (j = 0; j < releaseData[i].assets.size(); j++)
+			std::cerr << "Failed to read release count for repository '" << repoName << "\n";
+			return false;
+		}
+
+		for (j = 0; j < releaseCount; ++j)
+		{
+			std::string releaseTag;
+			file >> releaseTag;
+
+			unsigned int k, assetCount;
+			if (!(file >> assetCount).good())
 			{
-				std::cout << "\nFile name:         " << releaseData[i].assets[j].name;
-				std::cout << "\n  Size:            " << GetPrettyFileSize(releaseData[i].assets[j].fileSize);
-				std::cout << "\n  Download Count:  " << releaseData[i].assets[j].downloadCount << std::endl;
-				total += releaseData[i].assets[j].downloadCount;
+				std::cerr << "Failed to read asset count for release '" << releaseTag << "' in repository '" << repoName << "\n";
+				return false;
+			}
+
+			for (k = 0; k < assetCount; ++k)
+			{
+				std::string assetName;
+				file >> assetName;
+				
+				unsigned int count;
+				if (!(file >> count).good())
+				{
+					std::cerr << "Failed to read download count for asset '" << assetName
+						<< "' from release '" << releaseTag << "' in repository '" << repoName << "\n";
+					return false;
+				}
+
+				data[repoName].assetCountMap[releaseTag][assetName] = count;
+			}
+		}
+	}
+
+	return true;
+}
+
+bool WriteLastCountData(const RepoTagInfoMap& data)
+{
+	std::ofstream file(lastCountsFileName.c_str());
+	if (!file.is_open() || !file.good())
+	{
+		std::cerr << "Failed to open '" << lastCountsFileName << "' for output\n";
+		return false;
+	}
+
+	file << data.size() << '\n';
+	for (const auto& repoIter : data)
+	{
+		file << repoIter.first << '\n';
+		file << repoIter.second.assetCountMap.size() << '\n';
+
+		for (const auto& releaseIter : repoIter.second.assetCountMap)
+		{
+			file << releaseIter.first << '\n';
+			file << releaseIter.second.size() << '\n';
+
+			for (const auto& assetIter : releaseIter.second)
+			{
+				file << assetIter.first << '\n';
+				file << assetIter.second << '\n';
+			}
+		}
+	}
+
+	file << std::endl;
+
+	return true;
+}
+
+void PrintReleaseData(const std::vector<GitHubInterface::ReleaseData>& releaseData, const std::string& repoName, const bool& compare)
+{
+	RepoTagInfoMap downloadData;
+	if (compare && !ReadLastCountData(downloadData))
+		std::cerr << "Failed to read comparison data; assuming zero previous downloads\n";
+
+	std::cout << "\n" << releaseData.size() << " release(s)" << std::endl;
+	unsigned int total(0), totalDelta(0);
+	for (const auto& release : releaseData)
+	{
+		std::cout << "\n\nTag:      " << release.tag;
+		std::cout << "\nCreated:  " << release.creationTime;
+
+		if (release.assets.size() > 0)
+		{
+			std::cout << "\n" << release.assets.size() << " associated file(s)";
+			for (const auto& asset : release.assets)
+			{
+				std::cout << "\nFile name:         " << asset.name;
+				std::cout << "\n  Size:            " << GetPrettyFileSize(asset.fileSize);
+				std::cout << "\n  Download Count:  " << asset.downloadCount;
+
+				if (compare)
+				{
+					const unsigned int lastCount([downloadData, repoName, release, asset]()
+					{
+						auto repoIter(downloadData.find(repoName));
+						if (repoIter == downloadData.end())
+							return 0U;
+
+						auto releaseIter(repoIter->second.assetCountMap.find(release.tag));
+						if (releaseIter == repoIter->second.assetCountMap.end())
+							return 0U;
+
+						auto assetIter(releaseIter->second.find(asset.name));
+						if (assetIter == releaseIter->second.end())
+							return 0U;
+
+						return assetIter->second;
+					}());
+					const unsigned int delta(asset.downloadCount - lastCount);
+					totalDelta += delta;
+					if (delta > 0)
+						std::cout << " (+" << delta << ")";
+					downloadData[repoName].assetCountMap[release.tag][asset.name] = asset.downloadCount;
+				}
+
+				std::cout << std::endl;
+				total += asset.downloadCount;
 			}
 		}
 	}
 
 	std::cout << std::endl;
-	std::cout << "Total downloads:  " << total << std::endl;
+	std::cout << "Total downloads:  " << total;
+
+	if (compare && totalDelta > 0)
+		std::cout << " (+" << totalDelta << ")";
+
+	std::cout << std::endl;
+
+	if (compare)
+		WriteLastCountData(downloadData);
 }
 
-void GetStats(GitHubInterface& github, GitHubInterface::RepoInfo repo)
+void GetStats(GitHubInterface& github, GitHubInterface::RepoInfo repo, const bool& compare)
 {
 	std::vector<GitHubInterface::ReleaseData> releaseData;
 	if (!github.GetRepoData(repo, &releaseData))
 		return;
 
 	PrintRepoData(repo);
-	PrintReleaseData(releaseData);
+	PrintReleaseData(releaseData, repo.name, compare);
 }
 
-void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>& repoList)
+void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>& repoList, const bool& compare)
 {
 	std::vector<std::vector<GitHubInterface::ReleaseData> > releaseData(repoList.size());
 	unsigned int i;
@@ -163,6 +304,7 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 	const std::string releaseCountHeading("Releases");
 	const std::string totalDownloadCountHeading("Total");
 	const std::string latestDownloadCountHeading("Latest");
+	const std::string deltaCountHeading("Delta");
 
 	unsigned int maxNameLen(repoNameHeading.length());
 	unsigned int maxLangLen(languageHeading.length());
@@ -170,17 +312,18 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 	unsigned int maxReleaseCountLen(releaseCountHeading.length());
 	unsigned int maxTotalDownloadCountLen(totalDownloadCountHeading.length());
 	unsigned int maxLatestDownloadCountLen(latestDownloadCountHeading.length());
+	unsigned int maxDeltaCountLen(deltaCountHeading.length());
 
-	for (i = 0; i < repoList.size(); i++)
+	for (const auto& repo : repoList)
 	{
-		if (repoList[i].name.length() > maxNameLen)
-			maxNameLen = repoList[i].name.length();
+		if (repo.name.length() > maxNameLen)
+			maxNameLen = repo.name.length();
 
-		if (repoList[i].language.length() > maxLangLen)
-			maxLangLen = repoList[i].language.length();
+		if (repo.language.length() > maxLangLen)
+			maxLangLen = repo.language.length();
 
-		if (repoList[i].lastUpdateTime.length() > maxDateLen)
-			maxDateLen = repoList[i].lastUpdateTime.length();
+		if (repo.lastUpdateTime.length() > maxDateLen)
+			maxDateLen = repo.lastUpdateTime.length();
 	}
 
 	std::cout << std::left << std::setw(maxNameLen)
@@ -194,11 +337,25 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 	std::cout << std::left << std::setw(maxTotalDownloadCountLen)
 		<< std::setfill(' ') << totalDownloadCountHeading << "  ";
 	std::cout << std::left << std::setw(maxLatestDownloadCountLen)
-		<< std::setfill(' ') << latestDownloadCountHeading << "\n";
-	std::cout << std::setw(maxNameLen + maxDateLen + maxLangLen
+		<< std::setfill(' ') << latestDownloadCountHeading;
+
+	int width(maxNameLen + maxDateLen + maxLangLen
 		+ maxReleaseCountLen + maxTotalDownloadCountLen
-		+ maxLatestDownloadCountLen + 9)
-		<< std::setfill('-') << "-" << std::endl;
+		+ maxLatestDownloadCountLen + 10);
+	if (compare)
+	{
+		std::cout << "  " << std::left << std::setw(maxDeltaCountLen)
+			<< std::setfill(' ') << deltaCountHeading;
+		width += 2 + maxDeltaCountLen;
+	}
+	std::cout << '\n';
+
+	std::cout << std::setw(width)
+		<< std::setfill('-') << '-' << std::endl;
+
+	RepoTagInfoMap downloadData;
+	if (compare && !ReadLastCountData(downloadData))
+		std::cerr << "Failed to read comparison data; assuming zero previous downloads\n";
 
 	for (i = 0; i < repoList.size(); i++)
 	{
@@ -209,31 +366,58 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 			std::cout << std::left << std::setw(maxLangLen) << std::setfill(' ') << repoList[i].language << "  ";
 			std::cout << std::left << std::setw(maxReleaseCountLen) << std::setfill(' ') << releaseData[i].size() << "  ";
 
-			// Currently, GitHub lists newest release first.  It would be better to
-			// check the date for each release, but I'm being lazy now.
-			unsigned int j, fileCount(0), totalDownloadCount(0), latestDownloadCount(0);
-			for (j = 0; j < releaseData[i].size(); j++)
+			auto repoCountIter(downloadData.find(repoList[i].name));
+			unsigned int lastDownloadCount(0);
+			if (repoCountIter != downloadData.end())
 			{
-				fileCount += releaseData[i][j].assets.size();
+				for (const auto& releaseCountIter : repoCountIter->second.assetCountMap)
+				{
+					for (const auto& assetCountIter : releaseCountIter.second)
+						lastDownloadCount += assetCountIter.second;
+				}
+			}
 
-				unsigned int k;
-				for (k = 0; k < releaseData[i][j].assets.size(); k++)
-					totalDownloadCount += releaseData[i][j].assets[k].downloadCount;
+			unsigned int fileCount(0), totalDownloadCount(0), latestDownloadCount(0);
+			for (const auto& release : releaseData[i])
+			{
+				fileCount += release.assets.size();
 
-				if (j == 0)
-					latestDownloadCount = totalDownloadCount;
+				for (const auto& asset : release.assets)
+				{
+					totalDownloadCount += asset.downloadCount;
+					downloadData[repoList[i].name].assetCountMap[release.tag][asset.name] = asset.downloadCount;
+
+					// Currently, GitHub lists newest release first.  It would be better to
+					// check the date for each release, but I'm being lazy now.
+					if (latestDownloadCount == 0)
+						latestDownloadCount = totalDownloadCount;
+				}
 			}
 			
-			
 			std::cout << std::left << std::setw(maxTotalDownloadCountLen) << std::setfill(' ') << totalDownloadCount << "  ";
-			std::cout << std::left << std::setw(maxLatestDownloadCountLen) << std::setfill(' ') << latestDownloadCount << "\n";
+			std::cout << std::left << std::setw(maxLatestDownloadCountLen) << std::setfill(' ') << latestDownloadCount;
+
+			if (compare)
+			{
+				std::cout << "  " << std::left << std::setw(maxDeltaCountLen) << std::setfill(' ');
+				const int deltaDownloadCount(totalDownloadCount - lastDownloadCount);
+				if (deltaDownloadCount > 0)
+					std::cout << std::showpos << deltaDownloadCount;
+				else
+					std::cout << deltaDownloadCount;
+			}
+
+			std::cout << '\n';
 		}
 	}
+
+	if (compare)
+		WriteLastCountData(downloadData);
 }
 
-void PrintUsage()
+void PrintUsage(const std::string& appName)
 {
-	std::cout << "Usage:  gitHubStats [user [repo --all]]" << std::endl;
+	std::cout << "Usage:  " << appName << " [--compare] [user [repo --all]]" << std::endl;
 	std::cout << "If user and repo names are omitted, user is prompted\n"
 		"to enter the names interactively.  The user name may\n"
 		"be specified without any additional arguments, in which\n"
@@ -241,15 +425,77 @@ void PrintUsage()
 		"for the repository name.  Instead of a repository name\n"
 		"the --all argument may be specified, which prints a\n"
 		"table giving the total number of downloads for all of\n"
-		"the user's repositories." << std::endl;
+		"the user's repositories.\n\nThe --compare option\n"
+		"compares the number of downloads reported with the\n"
+		"number of downloads reported last time the repo was\n"
+		"polled.  Current download count is stored in a local\n"
+		"file." << std::endl;
+}
+
+struct CmdLineArgs
+{
+	bool compare = false;
+	std::string user;
+	std::string repo;
+	bool allRepos = false;
+};
+
+bool ProcessArguments(int argc, char *argv[], CmdLineArgs& args)
+{
+	if (argc > 4)
+		return false;
+
+	const std::string compareArg("--compare");
+	const std::string allArg("--all");
+
+	bool expectRepo(false);
+
+	int i;
+	for (i = 1; i < argc; ++i)
+	{
+		if (compareArg.compare(argv[i]) == 0)
+		{
+			args.compare = true;
+			expectRepo = false;
+		}
+		else if (allArg.compare(argv[i]) == 0)
+		{
+			args.allRepos = true;
+			expectRepo = false;
+		}
+		else if (args.user.empty())
+		{
+			args.user = argv[i];
+			expectRepo = true;
+		}
+		else if (expectRepo)
+		{
+			args.repo = argv[i];
+			expectRepo = false;
+		}
+		else
+		{
+			std::cerr << "Unexpected argument:  '" << argv[i] << "'\n";
+			return false;
+		}
+	}
+
+	return true;
 }
 
 int main(int argc, char *argv[])
 {
-	if (argc > 3)
+	CmdLineArgs args;
+	if (!ProcessArguments(argc, argv, args))
 	{
-		PrintUsage();
+		PrintUsage(argv[0]);
 		return 1;
+	}
+
+	if (args.user.empty())
+	{
+		if (!GetGitHubUser(args.user))
+			return 1;
 	}
 
 	// Check to see if we need to set up oAuth
@@ -262,33 +508,27 @@ int main(int argc, char *argv[])
 		oAuthFile >> clientSecret;
 	}
 
-	std::string user;
-	if (argc != 1)
-		user = argv[1];
-	else if (!GetGitHubUser(user))
-		return 1;
-
 	GitHubInterface github(userAgent, clientId, clientSecret);
-	if (!github.Initialize(user))
+	if (!github.Initialize(args.user))
 		return 1;
 
 	std::vector<GitHubInterface::RepoInfo> repoList;
 	unsigned int repo;
-	if (argc == 3)
+	if (args.repo.empty())
 	{
-		if (!GetGitHubRepo(github, repo, repoList, argv[2]))
+		if (!GetGitHubRepo(github, repo, repoList, args.allRepos))
 			return 1;
 	}
 	else
 	{
-		if (!GetGitHubRepo(github, repo, repoList))
+		if (!GetGitHubRepo(github, repo, repoList, args.allRepos, args.repo))
 			return 1;
 	}
 
 	if (repo < repoList.size())
-		GetStats(github, repoList[repo]);
+		GetStats(github, repoList[repo], args.compare);
 	else
-		GetAllStats(github, repoList);
+		GetAllStats(github, repoList, args.compare);
 
 	return 0;
 }

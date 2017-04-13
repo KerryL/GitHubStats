@@ -6,6 +6,7 @@ ipch/
 *.db
 
 oAuthInfo
+lastCounts
 
 *.suo
 *.sdf
