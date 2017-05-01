@@ -27,6 +27,8 @@ public:
 		std::string creationTime;
 		std::string lastUpdateTime;
 		std::string language;
+
+		bool hasReleases;
 	};
 
 	struct AssetData

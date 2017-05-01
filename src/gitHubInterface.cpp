@@ -175,6 +175,7 @@ bool GitHubInterface::GetRepoData(RepoInfo& info,
 	}
 
 	const int count(cJSON_GetArraySize(root));
+	info.hasReleases = count > 0;
 	int i;
 	for (i = 0; i < count; i++)
 	{

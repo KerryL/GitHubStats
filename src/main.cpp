@@ -316,6 +316,9 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 
 	for (const auto& repo : repoList)
 	{
+		if (!repo.hasReleases)
+			continue;
+
 		if (repo.name.length() > maxNameLen)
 			maxNameLen = repo.name.length();
 
