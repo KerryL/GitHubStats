@@ -229,3 +229,10 @@ std::string GitHubInterface::AuthorizeURL(const std::string& url) const
 
 	return url + "?client_id=" + clientId + "&client_secret=" + clientSecret;
 }
+
+bool GitHubInterface::IsBestAsset(const std::string& name)
+{
+	if (name.length() > 4 && name.substr(name.length() - 4).compare(".exe") == 0)// TODO:  Handle uppercase, too
+		return true;
+	return false;
+}

@@ -49,6 +49,8 @@ public:
 	bool GetRepoData(GitHubInterface::RepoInfo& info,
 		std::vector<ReleaseData>* releaseData = NULL);
 
+	static bool IsBestAsset(const std::string& name);
+
 private:
 	// URL building-blocks
 	static const std::string apiRoot;

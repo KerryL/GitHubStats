@@ -375,8 +375,14 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 			{
 				for (const auto& releaseCountIter : repoCountIter->second.assetCountMap)
 				{
+					const auto* bestAsset(&*releaseCountIter.second.begin());
 					for (const auto& assetCountIter : releaseCountIter.second)
-						lastDownloadCount += assetCountIter.second;
+					{
+						if (GitHubInterface::IsBestAsset(assetCountIter.first))
+							bestAsset = &assetCountIter;
+					}
+
+					lastDownloadCount += bestAsset->second;
 				}
 			}
 
@@ -394,7 +400,7 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 				auto bestAsset = release.assets.front();
 				for (const auto& asset : release.assets)
 				{
-					if (asset.name.length() > 4 && asset.name.substr(asset.name.length() - 4).compare(".exe") == 0)// TODO:  Handle uppercase, too
+					if (GitHubInterface::IsBestAsset(asset.name))
 						bestAsset = asset;
 				}
 
