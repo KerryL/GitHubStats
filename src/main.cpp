@@ -381,19 +381,30 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 			}
 
 			unsigned int fileCount(0), totalDownloadCount(0), latestDownloadCount(0);
+			time_t latestRelease(0);
 			for (const auto& release : releaseData[i])
 			{
 				fileCount += release.assets.size();
+				std::istringstream dateSS(release.creationTime);
+				struct std::tm tm;
+				dateSS >> std::get_time(&tm, "%Y-%m-%dT%X");
+				const time_t releaseDate(std::mktime(&tm));
 
+				// Best asset is the one that is an executable (or just take the first one)
+				auto bestAsset = release.assets.front();
 				for (const auto& asset : release.assets)
 				{
-					totalDownloadCount += asset.downloadCount;
-					downloadData[repoList[i].name].assetCountMap[release.tag][asset.name] = asset.downloadCount;
+					if (asset.name.length() > 4 && asset.name.substr(asset.name.length() - 4).compare(".exe") == 0)// TODO:  Handle uppercase, too
+						bestAsset = asset;
+				}
 
-					// Currently, GitHub lists newest release first.  It would be better to
-					// check the date for each release, but I'm being lazy now.
-					if (latestDownloadCount == 0)
-						latestDownloadCount = totalDownloadCount;
+				totalDownloadCount += bestAsset.downloadCount;
+				downloadData[repoList[i].name].assetCountMap[release.tag][bestAsset.name] = bestAsset.downloadCount;
+
+				if (difftime(latestRelease, releaseDate) < 0.0)
+				{
+					latestDownloadCount = bestAsset.downloadCount;
+					latestRelease = releaseDate;
 				}
 			}
 			
