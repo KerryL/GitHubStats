@@ -293,13 +293,18 @@ void GetStats(GitHubInterface& github, GitHubInterface::RepoInfo repo, const boo
 
 void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>& repoList, const bool& compare)
 {
-	std::vector<std::vector<GitHubInterface::ReleaseData> > releaseData(repoList.size());
+	std::vector<std::vector<GitHubInterface::ReleaseData>> releaseData(repoList.size());
 	unsigned int i;
 	for (i = 0; i < repoList.size(); i++)
+	{
+		const auto tee(repoList[i].lastUpdateTime.find('T'));
+		if (tee != std::string::npos)
+			repoList[i].lastUpdateTime = repoList[i].lastUpdateTime.substr(0, tee);
 		github.GetRepoData(repoList[i], &releaseData[i]);
+	}
 
 	const std::string repoNameHeading("Repo Name");
-	const std::string dateHeading("Last Modified");
+	const std::string dateHeading("Last Update");
 	const std::string languageHeading("Language");
 	const std::string releaseCountHeading("Releases");
 	const std::string totalDownloadCountHeading("Total");
