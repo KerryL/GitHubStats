@@ -28,7 +28,7 @@ bool GetGitHubUser(std::string& user)
 }
 
 bool GetGitHubRepo(GitHubInterface& github,
-	unsigned int& repo, std::vector<GitHubInterface::RepoInfo>& repoList,
+	size_t& repo, std::vector<GitHubInterface::RepoInfo>& repoList,
 	const bool& allRepos, const std::string& nameToMatch = "")
 {
 	repoList = github.GetUsersRepos();
@@ -43,14 +43,14 @@ bool GetGitHubRepo(GitHubInterface& github,
 	if (nameToMatch.empty() && !allRepos)
 	{
 		std::cout << "\nFound " << repoList.size() << " repos:\n";
-		unsigned int i, maxNameLen(0);
-		for (i = 0; i < repoList.size(); i++)
+		size_t maxNameLen(0);
+		for (size_t i = 0; i < repoList.size(); i++)
 		{
 			if (repoList[i].name.length() > maxNameLen)
 				maxNameLen = repoList[i].name.length();
 		}
 
-		for (i = 0; i < repoList.size(); i++)
+		for (size_t i = 0; i < repoList.size(); i++)
 		{
 			std::cout << "  " << std::left << std::setw(maxNameLen) << std::setfill(' ') << repoList[i].name;
 			std::cout << "    " << repoList[i].description;
@@ -311,13 +311,13 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 	const std::string latestDownloadCountHeading("Latest");
 	const std::string deltaCountHeading("Delta");
 
-	unsigned int maxNameLen(repoNameHeading.length());
-	unsigned int maxLangLen(languageHeading.length());
-	unsigned int maxDateLen(dateHeading.length());
-	unsigned int maxReleaseCountLen(releaseCountHeading.length());
-	unsigned int maxTotalDownloadCountLen(totalDownloadCountHeading.length());
-	unsigned int maxLatestDownloadCountLen(latestDownloadCountHeading.length());
-	unsigned int maxDeltaCountLen(deltaCountHeading.length());
+	size_t maxNameLen(repoNameHeading.length());
+	size_t maxLangLen(languageHeading.length());
+	size_t maxDateLen(dateHeading.length());
+	size_t maxReleaseCountLen(releaseCountHeading.length());
+	size_t maxTotalDownloadCountLen(totalDownloadCountHeading.length());
+	size_t maxLatestDownloadCountLen(latestDownloadCountHeading.length());
+	size_t maxDeltaCountLen(deltaCountHeading.length());
 
 	for (const auto& repo : repoList)
 	{
@@ -347,7 +347,7 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 	std::cout << std::left << std::setw(maxLatestDownloadCountLen)
 		<< std::setfill(' ') << latestDownloadCountHeading;
 
-	int width(maxNameLen + maxDateLen + maxLangLen
+	size_t width(maxNameLen + maxDateLen + maxLangLen
 		+ maxReleaseCountLen + maxTotalDownloadCountLen
 		+ maxLatestDownloadCountLen + 10);
 	if (compare)
@@ -391,7 +391,7 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 				}
 			}
 
-			unsigned int fileCount(0), totalDownloadCount(0), latestDownloadCount(0);
+			size_t fileCount(0), totalDownloadCount(0), latestDownloadCount(0);
 			time_t latestRelease(0);
 			for (const auto& release : releaseData[i])
 			{
@@ -425,7 +425,7 @@ void GetAllStats(GitHubInterface& github, std::vector<GitHubInterface::RepoInfo>
 			if (compare)
 			{
 				std::cout << "  " << std::left << std::setw(maxDeltaCountLen) << std::setfill(' ');
-				const int deltaDownloadCount(totalDownloadCount - lastDownloadCount);
+				const size_t deltaDownloadCount(totalDownloadCount - lastDownloadCount);
 				if (deltaDownloadCount > 0)
 					std::cout << std::showpos << deltaDownloadCount << std::noshowpos;
 				else
@@ -538,7 +538,7 @@ int main(int argc, char *argv[])
 		return 1;
 
 	std::vector<GitHubInterface::RepoInfo> repoList;
-	unsigned int repo;
+	size_t repo;
 	if (args.repo.empty())
 	{
 		if (!GetGitHubRepo(github, repo, repoList, args.allRepos))
