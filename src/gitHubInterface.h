@@ -74,17 +74,22 @@ private:
 	static const std::string sizeTag;
 	static const std::string downloadCountTag;
 
-	const std::string clientId;
-	const std::string clientSecret;
-
 	std::string userURL;
 	std::string reposURLRoot;
-
-	std::string AuthorizeURL(const std::string& url) const;
 
 	RepoInfo GetRepoData(cJSON* repoNode);
 	ReleaseData GetReleaseData(cJSON* releaseNode);
 	AssetData GetAssetData(cJSON* assetNode);
+
+	struct AuthData : public ModificationData
+	{
+		AuthData(const std::string user, const std::string pass) : basicAuth(user + ":" + pass) {}
+		std::string basicAuth;
+	};
+
+	const AuthData authData;
+
+	static bool AddCurlAuthentication(CURL* curl, const ModificationData* data);
 };
 
 #endif// GIT_HUB_INTERFACE_H_

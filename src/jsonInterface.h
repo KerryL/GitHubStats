@@ -12,6 +12,9 @@
 // cJSON forward declarations
 struct cJSON;
 
+// for cURL
+typedef void CURL;
+
 class JSONInterface
 {
 public:
@@ -28,9 +31,20 @@ protected:
 	std::string caCertificatePath;
 	bool verbose;
 
+	struct ModificationData
+	{
+		virtual ~ModificationData() = default;
+	};
+
+	typedef bool (*CURLModification)(CURL*, const ModificationData*);
+	static bool DoNothing(CURL*, const ModificationData*) { return true; }
+
 	bool DoCURLPost(const std::string &url, const std::string &data,
-		std::string &response) const;
-	bool DoCURLGet(const std::string &url, std::string &response) const;
+		std::string &response, CURLModification curlModification = &JSONInterface::DoNothing,
+		const ModificationData* modificationData = nullptr) const;
+	bool DoCURLGet(const std::string &url, std::string &response,
+		CURLModification curlModification = &JSONInterface::DoNothing,
+		const ModificationData* modificationData = nullptr) const;
 
 	static bool ReadJSON(cJSON *root, const std::string& field, int &value);
 	static bool ReadJSON(cJSON *root, const std::string& field, unsigned int &value);

@@ -3,12 +3,15 @@
 // Auth:  K. Loux
 // Desc:  Class for interfacing with GitHub using their API.
 
-// Standard C++ headers
-#include <iostream>
-
 // Local headers
 #include "gitHubInterface.h"
 #include "cJSON.h"
+
+// cURL headers
+#include <curl/curl.h>
+
+// Standard C++ headers
+#include <iostream>
 
 const std::string GitHubInterface::apiRoot("https://api.github.com/");
 
@@ -32,14 +35,14 @@ const std::string GitHubInterface::downloadCountTag("download_count");
 
 GitHubInterface::GitHubInterface(const std::string &userAgent,
 	const std::string& clientId, const std::string& clientSecret)
-	: JSONInterface(userAgent), clientId(clientId), clientSecret(clientSecret)
+	: JSONInterface(userAgent), authData(clientId, clientSecret)
 {
 }
 
 bool GitHubInterface::Initialize(const std::string& user)
 {
 	std::string response;
-	if (!DoCURLGet(AuthorizeURL(apiRoot), response))
+	if (!DoCURLGet(apiRoot, response, &GitHubInterface::AddCurlAuthentication, &authData))
 		return false;
 
 	cJSON *root = cJSON_Parse(response.c_str());
@@ -91,7 +94,7 @@ std::vector<GitHubInterface::RepoInfo> GitHubInterface::GetUsersRepos()
 	std::vector<RepoInfo> repos;
 
 	std::string response;
-	if (!DoCURLGet(AuthorizeURL(userURL), response))
+	if (!DoCURLGet(userURL, response, &GitHubInterface::AddCurlAuthentication, &authData))
 		return repos;
 
 	cJSON *root = cJSON_Parse(response.c_str());
@@ -111,7 +114,7 @@ std::vector<GitHubInterface::RepoInfo> GitHubInterface::GetUsersRepos()
 
 	cJSON_Delete(root);
 
-	if (!DoCURLGet(AuthorizeURL(reposURL), response))
+	if (!DoCURLGet(reposURL, response, &GitHubInterface::AddCurlAuthentication, &authData))
 		return repos;
 
 	root = cJSON_Parse(response.c_str());
@@ -151,6 +154,23 @@ GitHubInterface::RepoInfo GitHubInterface::GetRepoData(cJSON* repoNode)
 	return info;
 }
 
+bool GitHubInterface::AddCurlAuthentication(CURL* curl, const ModificationData* data)
+{
+	if (curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY))
+	{
+		std::cerr << "Failed to set authentication method\n";
+		return false;
+	}
+
+	if (curl_easy_setopt(curl, CURLOPT_USERPWD, dynamic_cast<const AuthData*>(data)->basicAuth.c_str()))
+	{
+		std::cerr << "Failed to set authentication data\n";
+		return false;
+	}
+
+	return true;
+}
+
 bool GitHubInterface::GetRepoData(RepoInfo& info,
 	std::vector<ReleaseData>* releaseData)
 {
@@ -163,7 +183,7 @@ bool GitHubInterface::GetRepoData(RepoInfo& info,
 	releaseData->clear();
 
 	std::string response;
-	if (!DoCURLGet(AuthorizeURL(info.releasesURL), response))
+	if (!DoCURLGet(info.releasesURL, response, &GitHubInterface::AddCurlAuthentication, &authData))
 		return false;
 
 	cJSON *root = cJSON_Parse(response.c_str());
@@ -220,14 +240,6 @@ GitHubInterface::AssetData GitHubInterface::GetAssetData(cJSON* assetNode)
 	ReadJSON(assetNode, downloadCountTag, info.downloadCount);
 
 	return info;
-}
-
-std::string GitHubInterface::AuthorizeURL(const std::string& url) const
-{
-	if (clientId.empty() || clientSecret.empty())
-		return url;
-
-	return url + "?client_id=" + clientId + "&client_secret=" + clientSecret;
 }
 
 bool GitHubInterface::IsBestAsset(const std::string& name)

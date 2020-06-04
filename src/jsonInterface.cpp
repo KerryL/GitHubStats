@@ -56,6 +56,8 @@ JSONInterface::JSONInterface(const std::string& userAgent) : userAgent(userAgent
 // Input Arguments:
 //		url		= const std::string&
 //		data	= const std::string&
+//		curlModification	= CURLModification
+//		modificationData	= const ModificationData*
 //
 // Output Arguments:
 //		response	= std::string&
@@ -65,7 +67,8 @@ JSONInterface::JSONInterface(const std::string& userAgent) : userAgent(userAgent
 //
 //==========================================================================
 bool JSONInterface::DoCURLPost(const std::string &url, const std::string &data,
-	std::string &response) const
+	std::string &response, CURLModification curlModification,
+	const ModificationData* modificationData) const
 {
 	CURL *curl = curl_easy_init();
 	if (!curl)
@@ -102,6 +105,9 @@ bool JSONInterface::DoCURLPost(const std::string &url, const std::string &data,
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, data.c_str());
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, data.length());
 
+	if (!curlModification(curl, modificationData))
+		return false;
+
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	CURLcode result = curl_easy_perform(curl);
 
@@ -125,6 +131,8 @@ bool JSONInterface::DoCURLPost(const std::string &url, const std::string &data,
 //
 // Input Arguments:
 //		url		= const std::string&
+//		curlModification	= CURLModification
+//		modificationData	= const ModificationData*
 //
 // Output Arguments:
 //		response	= std::string&
@@ -133,7 +141,9 @@ bool JSONInterface::DoCURLPost(const std::string &url, const std::string &data,
 //		bool, true for success, false otherwise
 //
 //==========================================================================
-bool JSONInterface::DoCURLGet(const std::string &url, std::string &response) const
+bool JSONInterface::DoCURLGet(const std::string &url, std::string &response,
+	CURLModification curlModification,
+	const ModificationData* modificationData) const
 {
 	CURL *curl = curl_easy_init();
 	if (!curl)
@@ -160,6 +170,9 @@ bool JSONInterface::DoCURLGet(const std::string &url, std::string &response) con
 
 	if (verbose)
 		curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+
+	if (!curlModification(curl, modificationData))
+		return false;
 
 	curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
 	CURLcode result = curl_easy_perform(curl);
