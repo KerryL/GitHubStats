@@ -14,6 +14,7 @@
 
 // Local headers
 #include "gitHubInterface.h"
+#include "oAuth2Interface.h"
 
 static const std::string userAgent("gitHubStats/1.0");
 static const std::string oAuthFileName("oAuthInfo");
@@ -69,8 +70,7 @@ bool GetGitHubRepo(GitHubInterface& github,
 		return true;
 	}
 
-	unsigned int i;
-	for (i = 0; i < repoList.size(); i++)
+	for (size_t i = 0; i < repoList.size(); i++)
 	{
 		if (repoList[i].name.compare(repoName) == 0)
 		{
@@ -131,26 +131,26 @@ bool ReadLastCountData(RepoTagInfoMap& data)
 		return false;
 	}
 
-	unsigned int i, repoCount;
+	unsigned int repoCount;
 	if (!(file >> repoCount).good())
 	{
 		std::cerr << "Failed to read repository count\n";
 		return false;
 	}
 
-	for (i = 0; i < repoCount; ++i)
+	for (unsigned int i = 0; i < repoCount; ++i)
 	{
 		std::string repoName;
 		file >> repoName;
 
-		unsigned int j, releaseCount;
+		unsigned int releaseCount;
 		if (!(file >> releaseCount).good())
 		{
 			std::cerr << "Failed to read release count for repository '" << repoName << "\n";
 			return false;
 		}
 
-		for (j = 0; j < releaseCount; ++j)
+		for (unsigned int j = 0; j < releaseCount; ++j)
 		{
 			std::string releaseTag;
 			file >> releaseTag;
@@ -508,6 +508,70 @@ bool ProcessArguments(int argc, char *argv[], CmdLineArgs& args)
 	return true;
 }
 
+static const std::string oAuthTokenFileName(".oAuthToken");
+
+bool SetupOAuth2Interface(const std::string& clientId, const std::string& clientSecret, std::ostream& log, std::string& oAuth2Token)
+{
+	log << "Setting up OAuth2" << std::endl;
+
+	OAuth2Interface::Get().SetLoggingTarget(log);
+
+	OAuth2Interface::Get().SetClientID(clientId);
+	OAuth2Interface::Get().SetClientSecret(clientSecret);
+	OAuth2Interface::Get().SetVerboseOutput(false);
+	/*if (!email.caCertificatePath.empty())
+		OAuth2Interface::Get().SetCACertificatePath(caCertificatePath);*/
+
+#if 0
+	OAuth2Interface::Get().SetTokenURL("https://github.com/login/oauth/access_token");
+	OAuth2Interface::Get().SetAuthenticationURL("https://github.com/login/oauth/authorize");
+	OAuth2Interface::Get().SetResponseType("code");
+	OAuth2Interface::Get().SetRedirectURI("");
+	//OAuth2Interface::Get().SetLoginHint();
+	//OAuth2Interface::Get().SetGrantType("authorization_code");
+	OAuth2Interface::Get().SetScope("");
+	// May need state string?
+#else
+	OAuth2Interface::Get().SetTokenURL("https://github.com/login/oauth/access_token");
+	OAuth2Interface::Get().SetAuthenticationURL("https://github.com/login/device/code");
+	OAuth2Interface::Get().SetAuthenticationPollURL("https://github.com/login/oauth/access_token");
+	OAuth2Interface::Get().SetGrantType("urn:ietf:params:oauth:grant-type:device_code");
+	//OAuth2Interface::Get().SetPollGrantType("urn:ietf:params:oauth:grant-type:device_code");
+	OAuth2Interface::Get().SetScope("public_repo");
+#endif
+
+	// Set the refresh token (one will be created, if this is the first login)
+	{
+		std::ifstream tokenFile(oAuthTokenFileName);
+		if (tokenFile.is_open())// If it's not found, no error since that just means we haven't logged in yet
+			std::getline(tokenFile, oAuth2Token);
+		else
+			log << "Could not open '" << oAuthTokenFileName << "' for input; will request new token..." << std::endl;
+	}
+
+	OAuth2Interface::Get().SetRefreshToken(oAuth2Token);
+	if (OAuth2Interface::Get().GetRefreshToken() != oAuth2Token)
+	{
+		oAuth2Token = OAuth2Interface::Get().GetRefreshToken();
+		std::ofstream tokenFile(oAuthTokenFileName);
+		if (tokenFile.is_open())
+		{
+			tokenFile << oAuth2Token;
+			log << "Updated OAuth2 refresh token written to " << oAuthTokenFileName << std::endl;
+		}
+		else
+			log << "Failed to write updated OAuth2 refresh token to " << oAuthTokenFileName << std::endl;
+	}
+
+	if (OAuth2Interface::Get().GetRefreshToken().empty())
+	{
+		log << "Failed to obtain refresh token" << std::endl;
+		return false;
+	}
+
+	return true;
+}
+
 int main(int argc, char *argv[])
 {
 	CmdLineArgs args;
@@ -533,7 +597,12 @@ int main(int argc, char *argv[])
 		oAuthFile >> clientSecret;
 	}
 
-	GitHubInterface github(userAgent, clientId, clientSecret);
+	std::string token;
+	if (!SetupOAuth2Interface(clientId, clientSecret, std::cout, token))
+		return 1;
+
+	GitHubInterface github(userAgent, token);
+	github.SetVerboseOutput(false);
 	if (!github.Initialize(args.user))
 		return 1;
 

@@ -16,7 +16,9 @@ class GitHubInterface : public JSONInterface
 {
 public:
 	GitHubInterface(const std::string &userAgent,
-		const std::string& clientId, const std::string& clientSecret);
+		const std::string& token);
+	~GitHubInterface();
+
 	bool Initialize(const std::string& user);
 
 	struct RepoInfo
@@ -83,13 +85,17 @@ private:
 
 	struct AuthData : public ModificationData
 	{
-		AuthData(const std::string user, const std::string pass) : basicAuth(user + ":" + pass) {}
-		std::string basicAuth;
+		AuthData(struct curl_slist*& headerList, const std::string& token) : headerList(headerList), token(token) {}
+		struct curl_slist*& headerList;
+		std::string token;
 	};
 
 	const AuthData authData;
+	struct curl_slist* headerList = nullptr;
 
 	static bool AddCurlAuthentication(CURL* curl, const ModificationData* data);
+
+	static std::string AppendPageToURL(const std::string& root, const unsigned int& page);
 };
 
 #endif// GIT_HUB_INTERFACE_H_

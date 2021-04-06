@@ -12,6 +12,7 @@
 
 // Standard C++ headers
 #include <iostream>
+#include <sstream>
 
 const std::string GitHubInterface::apiRoot("https://api.github.com/");
 
@@ -34,9 +35,15 @@ const std::string GitHubInterface::sizeTag("size");
 const std::string GitHubInterface::downloadCountTag("download_count");
 
 GitHubInterface::GitHubInterface(const std::string &userAgent,
-	const std::string& clientId, const std::string& clientSecret)
-	: JSONInterface(userAgent), authData(clientId, clientSecret)
+	const std::string& token)
+	: JSONInterface(userAgent), authData(headerList, token)
 {
+}
+
+GitHubInterface::~GitHubInterface()
+{
+	if (headerList)
+		curl_slist_free_all(headerList);
 }
 
 bool GitHubInterface::Initialize(const std::string& user)
@@ -114,22 +121,35 @@ std::vector<GitHubInterface::RepoInfo> GitHubInterface::GetUsersRepos()
 
 	cJSON_Delete(root);
 
-	if (!DoCURLGet(reposURL, response, &GitHubInterface::AddCurlAuthentication, &authData))
-		return repos;
-
-	root = cJSON_Parse(response.c_str());
-
-	const int count(cJSON_GetArraySize(root));
-	int i;
-	for (i = 0; i < count; i++)
+	unsigned int page(1);
+	while (true)
 	{
-		cJSON* repo = cJSON_GetArrayItem(root, i);
-		repos.push_back(GetRepoData(repo));
+		if (!DoCURLGet(AppendPageToURL(reposURL, page++), response, &GitHubInterface::AddCurlAuthentication, &authData))
+			return repos;
+
+		root = cJSON_Parse(response.c_str());
+
+		const int count(cJSON_GetArraySize(root));
+		if (count == 0)
+			break;
+
+		for (int i = 0; i < count; i++)
+		{
+			cJSON* repo = cJSON_GetArrayItem(root, i);
+			repos.push_back(GetRepoData(repo));
+		}
+
+		cJSON_Delete(root);
 	}
 
-	cJSON_Delete(root);
-
 	return repos;
+}
+
+std::string GitHubInterface::AppendPageToURL(const std::string& root, const unsigned int& page)
+{
+	std::ostringstream ss;
+	ss << root << "?page=" << page;
+	return ss.str();
 }
 
 GitHubInterface::RepoInfo GitHubInterface::GetRepoData(cJSON* repoNode)
@@ -156,7 +176,7 @@ GitHubInterface::RepoInfo GitHubInterface::GetRepoData(cJSON* repoNode)
 
 bool GitHubInterface::AddCurlAuthentication(CURL* curl, const ModificationData* data)
 {
-	if (curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY))
+	/*if (curl_easy_setopt(curl, CURLOPT_HTTPAUTH, CURLAUTH_ANY))
 	{
 		std::cerr << "Failed to set authentication method\n";
 		return false;
@@ -165,6 +185,28 @@ bool GitHubInterface::AddCurlAuthentication(CURL* curl, const ModificationData* 
 	if (curl_easy_setopt(curl, CURLOPT_USERPWD, dynamic_cast<const AuthData*>(data)->basicAuth.c_str()))
 	{
 		std::cerr << "Failed to set authentication data\n";
+		return false;
+	}*/
+
+	auto headerList(dynamic_cast<const AuthData*>(data)->headerList);
+	headerList = curl_slist_append(headerList, "Accept: application/vnd.github.v3+json");
+	if (!headerList)
+	{
+		std::cerr << "Failed to create accept header\n";
+		return false;
+	}
+
+	auto token(dynamic_cast<const AuthData*>(data)->token);
+	headerList = curl_slist_append(headerList, std::string("Authorization: token " + token).c_str());
+	if (!headerList)
+	{
+		std::cerr << "Failed to create auth header\n";
+		return false;
+	}
+
+	if (curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headerList))
+	{
+		std::cerr << "Failed to add header list\n";
 		return false;
 	}
 
